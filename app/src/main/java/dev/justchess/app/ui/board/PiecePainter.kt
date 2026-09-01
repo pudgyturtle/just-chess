@@ -32,7 +32,7 @@ private val BlackRecess = Color(0xFF0E0F12)
 
 /**
  * Icon-set pieces: flat-plus, ~75% of the square, shared cream baseline.
- * Knight is the app-icon sprite. No top notches on rook/bishop/queen.
+ * Knight is the app-icon sprite. Rook has castle merlons; no top notches on bishop/queen.
  */
 fun DrawScope.drawChessPiece(
     piece: Piece,
@@ -120,14 +120,23 @@ private fun pawnBody() = Path().apply {
 }
 
 private fun rookBody() = Path().apply {
-    moveTo(26f, 14f)
-    lineTo(74f, 14f)
-    lineTo(76f, 20f)
-    lineTo(70f, 28f)
+    // 3 merlons / 2 crenels
+    moveTo(26f, 12f)
+    lineTo(38f, 12f)
+    lineTo(38f, 24f)
+    lineTo(44f, 24f)
+    lineTo(44f, 12f)
+    lineTo(56f, 12f)
+    lineTo(56f, 24f)
+    lineTo(62f, 24f)
+    lineTo(62f, 12f)
+    lineTo(74f, 12f)
+    lineTo(74f, 24f)
+    lineTo(76f, 30f)
     lineTo(68f, 72f)
     lineTo(32f, 72f)
-    lineTo(30f, 28f)
-    lineTo(24f, 20f)
+    lineTo(24f, 30f)
+    lineTo(26f, 24f)
     close()
 }
 
