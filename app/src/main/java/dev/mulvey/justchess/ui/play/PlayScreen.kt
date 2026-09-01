@@ -209,7 +209,7 @@ fun PlayScreen(vm: GameViewModel) {
 
     if (state.showNewGame) {
         ModalBottomSheet(
-            onDismissRequest = { vm.dismissNewGame() },
+            onDismissRequest = { if (state.inProgress || state.gameOver) vm.dismissNewGame() },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         ) {
             Column(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
@@ -221,18 +221,21 @@ fun PlayScreen(vm: GameViewModel) {
                         FilterChip(
                             selected = setupColor == c,
                             onClick = { setupColor = c },
-                            label = { Text(c.name.lowercase().replaceFirstChar { it.titlecase(Locale.US) }) },
+                            label = { Text(c.label) },
                         )
                     }
                 }
                 Spacer(Modifier.height(8.dp))
                 Text("Time control", style = MaterialTheme.typography.labelLarge)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TimeControl.entries.forEach { t ->
+                Row(
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    TimeControl.entries.forEach { tc ->
                         FilterChip(
-                            selected = setupTime == t,
-                            onClick = { setupTime = t },
-                            label = { Text(t.label) },
+                            selected = setupTime == tc,
+                            onClick = { setupTime = tc },
+                            label = { Text(tc.label) },
                         )
                     }
                 }

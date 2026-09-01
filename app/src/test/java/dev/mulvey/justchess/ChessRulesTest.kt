@@ -39,6 +39,11 @@ class ChessRulesTest {
     }
 
     @Test
+    fun startPositionHasThirtyTwoPieces() {
+        assertEquals(32, Board().occupiedPieces().size)
+    }
+
+    @Test
     fun perftStartDepth3() {
         assertEquals(8902L, perft(Board(), 3))
     }

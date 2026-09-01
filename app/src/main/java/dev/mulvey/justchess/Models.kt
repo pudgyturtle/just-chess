@@ -15,7 +15,7 @@ enum class TimeControl(
 ) {
     FIVE("5+0", "5+0", 5 * 60 * 1000L),
     TEN("10+0", "10+0", 10 * 60 * 1000L),
-    UNLIMITED("unlimited", "Unlimited", null);
+    UNLIMITED("unlimited", "Off", null);
 
     val isUnlimited: Boolean get() = initialMs == null
 
@@ -25,7 +25,15 @@ enum class TimeControl(
     }
 }
 
-enum class ColorChoice { WHITE, BLACK, RANDOM }
+enum class ColorChoice {
+    WHITE, BLACK, RANDOM;
+    val label: String
+        get() = when (this) {
+            WHITE -> "White"
+            BLACK -> "Black"
+            RANDOM -> "Random"
+        }
+}
 
 enum class GameEnd {
     CHECKMATE,

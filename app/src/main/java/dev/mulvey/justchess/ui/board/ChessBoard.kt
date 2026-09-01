@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
@@ -90,10 +91,9 @@ fun ChessBoard(
             val col = if (flipped) 7 - file else file
             val row = if (flipped) rank else 7 - rank
             val pad = sq * 0.08f
-            drawContext.canvas.save()
-            drawContext.canvas.translate(col * sq + pad, row * sq + pad)
-            drawChessPiece(piece, sq - pad * 2)
-            drawContext.canvas.restore()
+            translate(col * sq + pad, row * sq + pad) {
+                drawChessPiece(piece, sq - pad * 2)
+            }
         }
         val files = "abcdefgh"
         for (i in 0..7) {

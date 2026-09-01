@@ -96,7 +96,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     val history: StateFlow<List<GameRecord>> = _history
 
     init {
-        snapshotBoard()
+        publish()
+        _ui.update { it.copy(showNewGame = true) }
         viewModelScope.launch {
             val profile = repo.loadProfile()
             _history.value = repo.loadGames()
@@ -543,15 +544,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         _ui.update { it.copy(whiteMs = whiteMs, blackMs = blackMs) }
     }
 
-    private fun snapshotBoard(): Map<Square, Piece> {
-        val map = LinkedHashMap<Square, Piece>()
-        for (sq in Square.entries) {
-            if (sq == Square.NONE) continue
-            val p = board.getPiece(sq)
-            if (p != Piece.NONE) map[sq] = p
-        }
-        return map
-    }
+    private fun snapshotBoard(): Map<Square, Piece> = board.occupiedPieces()
 
     private fun kingSquare(side: Side): Square? {
         val piece = if (side == Side.WHITE) Piece.WHITE_KING else Piece.BLACK_KING

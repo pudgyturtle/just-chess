@@ -68,6 +68,7 @@ class AppContractTest {
         assertEquals("10+0", TimeControl.TEN.id)
         assertEquals("5+0", TimeControl.FIVE.id)
         assertEquals("unlimited", TimeControl.UNLIMITED.id)
+        assertEquals("Off", TimeControl.UNLIMITED.label)
         assertEquals(TimeControl.TEN, TimeControl.fromId("nope"))
         assertEquals(TimeControl.FIVE, TimeControl.fromId("5+0"))
         assertEquals(TimeControl.UNLIMITED, TimeControl.fromId("unlimited"))
