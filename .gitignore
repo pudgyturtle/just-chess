@@ -27,3 +27,7 @@ secrets.*
 
 # Official Stockfish binary is >100MB; fetched at build time (see scripts/fetch-stockfish.sh)
 app/src/main/jniLibs/**/*.so
+
+# Local debug/release APKs — never commit binaries
+*.apk
+*.apk.*

@@ -2,7 +2,7 @@
 
 Offline chess for GrapheneOS. Play against on-device **Stockfish 17.1** at labeled **engine Elo** levels. No accounts, ads, analytics, or network.
 
-`applicationId`: `dev.mulvey.justchess`
+`applicationId`: `dev.justchess.app`
 
 ## Install on GrapheneOS
 

@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = "dev.mulvey.justchess"
+    namespace = "dev.justchess.app"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "dev.mulvey.justchess"
+        applicationId = "dev.justchess.app"
         minSdk = 29
         targetSdk = 35
         versionCode = 1
