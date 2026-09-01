@@ -1,0 +1,29 @@
+# Gradle / Android
+.gradle/
+**/build/
+local.properties
+*.iml
+.idea/
+.cxx/
+captures/
+.externalNativeBuild/
+
+# Signing / secrets
+*.jks
+*.keystore
+keystore.properties
+google-services.json
+secrets
+secrets.*
+*.key
+*.pem
+
+# OS / editor
+.DS_Store
+*.swp
+*~
+.vscode/
+.kotlin/
+
+# Official Stockfish binary is >100MB; fetched at build time (see scripts/fetch-stockfish.sh)
+app/src/main/jniLibs/**/*.so
