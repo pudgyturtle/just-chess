@@ -47,34 +47,74 @@ class StockfishEngine(
 
     private fun startLocked() {
         if (started.get() && process?.isAlive == true) return
-        val binary = if (cacheDir != null) {
-            StockfishBinary.resolve(packaged, cacheDir)
-        } else {
-            packaged
+        // Playtest: nativeLibraryDir/libstockfish.so DID start on Graphene Pixel.
+        // codeCacheDir copy as "stockfish" made New game fail immediately. Try
+        // the packaged path first; copy is fallback only if start() throws.
+        val errors = mutableListOf<String>()
+        if (tryStart(packaged, errors)) return
+        if (cacheDir != null) {
+            try {
+                val copy = StockfishBinary.resolve(packaged, cacheDir)
+                if (copy.absolutePath != packaged.absolutePath && tryStart(copy, errors)) return
+            } catch (e: Exception) {
+                errors += "cache copy: ${e.message}"
+            }
         }
+        throw IllegalStateException(
+            "Stockfish failed to start: ${errors.joinToString("; ")}",
+        )
+    }
+
+    private fun tryStart(binary: File, errors: MutableList<String>): Boolean {
         if (!binary.exists()) {
-            throw IllegalStateException("Stockfish binary missing at ${binary.absolutePath}")
+            errors += "missing ${binary.absolutePath}"
+            return false
         }
-        binary.setExecutable(true, false)
-        val pb = ProcessBuilder(binary.absolutePath)
-            .directory(binary.parentFile)
-            .redirectErrorStream(true)
-        val proc = pb.start()
-        process = proc
-        reader = BufferedReader(InputStreamReader(proc.inputStream, Charsets.UTF_8), 8 * 1024)
-        writer = BufferedWriter(OutputStreamWriter(proc.outputStream, Charsets.UTF_8), 8 * 1024)
-        sendRaw("uci")
-        if (!waitForLocked("uciok", 8000)) {
-            throw IllegalStateException("Stockfish did not complete UCI handshake")
+        destroyQuiet()
+        try {
+            binary.setExecutable(true, false)
+            val proc = ProcessBuilder(binary.absolutePath)
+                .directory(binary.parentFile)
+                .redirectErrorStream(true)
+                .start()
+            process = proc
+            reader = BufferedReader(InputStreamReader(proc.inputStream, Charsets.UTF_8), 8 * 1024)
+            writer = BufferedWriter(OutputStreamWriter(proc.outputStream, Charsets.UTF_8), 8 * 1024)
+            sendRaw("uci")
+            // Blocking readLine: first NNUE load can exceed a short ready() timeout.
+            // The previous working APK waited this way and handshake succeeded.
+            if (!waitForLocked("uciok", 60_000)) {
+                errors += "no uciok from ${binary.absolutePath}"
+                destroyQuiet()
+                return false
+            }
+            sendRaw("setoption name Threads value $threads")
+            sendRaw("setoption name Hash value $hashMb")
+            sendRaw("setoption name Ponder value false")
+            sendRaw("isready")
+            if (!waitForLocked("readyok", 30_000)) {
+                errors += "no readyok from ${binary.absolutePath}"
+                destroyQuiet()
+                return false
+            }
+            started.set(true)
+            return true
+        } catch (e: Exception) {
+            errors += "exec ${binary.absolutePath}: ${e.javaClass.simpleName} ${e.message}"
+            destroyQuiet()
+            return false
         }
-        sendRaw("setoption name Threads value $threads")
-        sendRaw("setoption name Hash value $hashMb")
-        sendRaw("setoption name Ponder value false")
-        sendRaw("isready")
-        if (!waitForLocked("readyok", 8000)) {
-            throw IllegalStateException("Stockfish not ready after handshake")
+    }
+
+    private fun destroyQuiet() {
+        try {
+            process?.destroy()
+        } catch (_: Exception) {
         }
-        started.set(true)
+        process = null
+        reader = null
+        writer = null
+        started.set(false)
     }
 
     suspend fun newGame() = withContext(Dispatchers.IO) {
@@ -83,7 +123,7 @@ class StockfishEngine(
             sendRaw("stop")
             sendRaw("ucinewgame")
             sendRaw("isready")
-            if (!waitForLocked("readyok", 8000)) {
+            if (!waitForLocked("readyok", 30_000)) {
                 throw IllegalStateException("Stockfish not ready after ucinewgame")
             }
         }
@@ -95,7 +135,7 @@ class StockfishEngine(
             sendRaw("setoption name UCI_LimitStrength value true")
             sendRaw("setoption name UCI_Elo value $elo")
             sendRaw("isready")
-            if (!waitForLocked("readyok", 4000)) {
+            if (!waitForLocked("readyok", 15_000)) {
                 throw IllegalStateException("Stockfish not ready after Elo $elo")
             }
         }
@@ -175,17 +215,13 @@ class StockfishEngine(
         }
     }
 
-    /** @return true if [token] was seen */
+    /** Handshake wait. Blocking readLine matches the APK that DID start Stockfish. */
     private fun waitForLocked(token: String, timeoutMs: Long): Boolean {
         val r = reader ?: return false
         val deadline = System.currentTimeMillis() + timeoutMs
         while (System.currentTimeMillis() < deadline) {
-            if (r.ready()) {
-                val line = r.readLine() ?: return false
-                if (line.contains(token)) return true
-            } else {
-                Thread.sleep(20)
-            }
+            val line = r.readLine() ?: return false
+            if (line.contains(token)) return true
         }
         return false
     }

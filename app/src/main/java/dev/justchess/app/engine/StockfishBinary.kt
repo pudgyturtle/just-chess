@@ -3,8 +3,9 @@ package dev.justchess.app.engine
 import java.io.File
 
 /**
- * Android's app lib dir can be mounted noexec (Graphene / API 29+). Copy the
- * packaged `libstockfish.so` into [cacheDir] and run that file.
+ * Fallback only. Playtest showed nativeLibraryDir/libstockfish.so already
+ * started on Graphene; copying to codeCacheDir as "stockfish" broke New game.
+ * [StockfishEngine] execs the packaged path first.
  */
 object StockfishBinary {
     const val PACKAGED_NAME = "libstockfish.so"
