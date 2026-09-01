@@ -1,8 +1,8 @@
 # Just Chess
 
-Offline chess for GrapheneOS. Play against on-device **Stockfish 18** at labeled **engine Elo** levels. No accounts, ads, analytics, or network.
+Offline chess for GrapheneOS. Play against on-device **Stockfish 17.1** at labeled **engine Elo** levels. No accounts, ads, analytics, or network.
 
-`applicationId`: `dev.mulvey.justchess`
+`applicationId`: `dev.justchess.app`
 
 ## Install on GrapheneOS
 
@@ -19,14 +19,14 @@ There is no Play Store listing and no GitHub Release in v1.
 - Time: 5+0, 10+0 (default), or unlimited. Clocks tick only on that side’s turn; flag loses. Unlimited has no clock; the engine still uses a modest `movetime` with the Elo cap.
 - White / Black / random. Takebacks, resign. Draws by FIDE rule only (mate, stalemate, threefold, 50-move, insufficient material).
 - Opening book for the first 6–12 plies, with variety.
-- History is PGN; tap a game to replay. Export/import a zip of `profile.json` + PGNs.
+- History is PGN; tap a game to replay. Export one game as `.pgn` from Replay. Export/import a zip of `profile.json` + all games (profile + history).
 
 ## Build
 
 JDK 17 is required.
 
 ```bash
-./scripts/fetch-stockfish.sh   # first time, ~110 MB official armv8 binary
+./scripts/fetch-stockfish.sh   # first time, ~77 MB official armv8 binary
 ./gradlew :app:assembleDebug
 ./gradlew :app:testDebugUnitTest
 ```
@@ -41,11 +41,11 @@ The merged manifest must not contain `android.permission.INTERNET`. v1 ships **a
 
 ## Stockfish
 
-Official **Stockfish 18** `android-armv8` binary from the [sf_18](https://github.com/official-stockfish/Stockfish/releases/tag/sf_18) release, renamed to `app/src/main/jniLibs/arm64-v8a/libstockfish.so` and executed from `applicationInfo.nativeLibraryDir`. NNUE nets are **embedded in that official binary**; nothing is downloaded at runtime.
+Official **Stockfish 17.1** `android-armv8` binary from the [sf_17.1](https://github.com/official-stockfish/Stockfish/releases/tag/sf_17.1) release, renamed to `app/src/main/jniLibs/arm64-v8a/libstockfish.so` and executed from `applicationInfo.nativeLibraryDir`. NNUE nets are **embedded in that official binary**; nothing is downloaded at runtime.
 
 Runtime limits: **1 thread**, **Hash 32 MB**, search stopped on pause/stop and when the game ends. Timed games use `go wtime/btime`. Unlimited uses `go movetime 1000`.
 
-Corresponding source: https://github.com/official-stockfish/Stockfish/tree/sf_18  
+Corresponding source: https://github.com/official-stockfish/Stockfish/tree/sf_17.1  
 License: GPL-3.0 (see `third_party/stockfish/Copying.txt` and the app About screen).
 
 No official Android **x86_64** binary is published, so emulators that are not arm64 will not run the engine.

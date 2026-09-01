@@ -1,0 +1,38 @@
+name: Android CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, v1]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Grant wrapper
+        run: chmod +x gradlew scripts/fetch-stockfish.sh
+      - name: Fetch Stockfish binary
+        run: ./scripts/fetch-stockfish.sh
+      - name: Unit tests
+        run: ./gradlew :app:testDebugUnitTest --stacktrace
+      - name: Assemble debug APK
+        run: ./gradlew :app:assembleDebug --stacktrace
+      - name: Check merged manifest has no INTERNET
+        run: |
+          set -e
+          f=$(find app/build -name AndroidManifest.xml | head -n 1)
+          echo "Checking $f"
+          if grep -E 'android:name="android.permission.INTERNET"' "$f" | grep -v 'tools:node="remove"'; then
+            echo "INTERNET permission found in merged manifest" >&2
+            cat "$f"
+            exit 1
+          fi
+          echo "OK: no INTERNET permission"
