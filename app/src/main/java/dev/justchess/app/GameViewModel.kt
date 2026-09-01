@@ -13,7 +13,9 @@ import com.github.bhlangonijr.chesslib.move.Move
 import dev.justchess.app.data.AppRepository
 import dev.justchess.app.data.Pgn
 import dev.justchess.app.engine.OpeningBook
+import dev.justchess.app.engine.StockfishBinary
 import dev.justchess.app.engine.StockfishEngine
+import kotlin.coroutines.cancellation.CancellationException
 import dev.justchess.app.rating.Elo
 import java.io.File
 import java.util.UUID
@@ -69,7 +71,8 @@ data class UiState(
 class GameViewModel(application: Application) : AndroidViewModel(application) {
     private val repo = (application as JustChessApp).repository
     private val engine = StockfishEngine(
-        File(application.applicationInfo.nativeLibraryDir, "libstockfish.so"),
+        File(application.applicationInfo.nativeLibraryDir, StockfishBinary.PACKAGED_NAME),
+        application.codeCacheDir,
     )
     private val board = Board()
     private val played = mutableListOf<Move>()
@@ -123,6 +126,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             engineJob?.cancel()
             engine.stopSearch()
+            engineJob?.join()
             gameLock.withLock {
                 val side = when (color) {
                     ColorChoice.WHITE -> Side.WHITE
@@ -154,6 +158,9 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 engine.ensureStarted()
                 engine.newGame()
                 engine.setElo(elo)
+                _ui.update { it.copy(engineAvailable = true) }
+            } catch (e: CancellationException) {
+                throw e
             } catch (_: Exception) {
                 _ui.update { it.copy(engineAvailable = false) }
             }
@@ -233,6 +240,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             engineJob?.cancel()
             engine.stopSearch()
+            engineJob?.join()
             gameLock.withLock {
                 if (!inProgress || gameOver) return@withLock
                 if (played.isEmpty()) return@withLock
@@ -386,6 +394,9 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                         engine.bestMove(uciMoves, w, b)
                     }
                     mv.takeIf { it.isNotBlank() && it != "(none)" }
+                } catch (e: CancellationException) {
+                    _ui.update { it.copy(engineThinking = false) }
+                    throw e
                 } catch (_: Exception) {
                     _ui.update { it.copy(engineAvailable = false, engineThinking = false) }
                     return@launch

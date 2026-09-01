@@ -5,7 +5,9 @@ import com.github.bhlangonijr.chesslib.move.Move
 import com.github.bhlangonijr.chesslib.move.MoveList
 import dev.justchess.app.data.Pgn
 import dev.justchess.app.engine.OpeningBook
+import dev.justchess.app.engine.StockfishBinary
 import dev.justchess.app.engine.StockfishEngine
+import java.io.File
 import dev.justchess.app.rating.Elo
 import java.io.ByteArrayOutputStream
 import java.util.zip.ZipEntry
@@ -260,5 +262,61 @@ class AppContractTest {
         val pgn = Pgn.build(mapOf("Event" to "Just Chess"), moves, "*")
         assertEquals("1.e4 e5 2.Nf3", Pgn.openingSummary(pgn))
         assertEquals("", Pgn.openingSummary(""))
+    }
+
+    @Test
+    fun stockfishBinaryCopiedIntoCacheWhenPackagedExists() {
+        val native = File.createTempFile("jc-native", "").apply {
+            delete()
+            mkdirs()
+            deleteOnExit()
+        }
+        val cache = File.createTempFile("jc-cache", "").apply {
+            delete()
+            mkdirs()
+            deleteOnExit()
+        }
+        val packaged = File(native, StockfishBinary.PACKAGED_NAME)
+        packaged.writeBytes(ByteArray(1_500_000) { 1 })
+        val dest = StockfishBinary.resolve(packaged, cache)
+        assertEquals(StockfishBinary.CACHE_NAME, dest.name)
+        assertTrue(dest.exists())
+        assertEquals(1_500_000L, dest.length())
+        assertTrue(dest.canExecute())
+        // second resolve reuses the copy
+        val dest2 = StockfishBinary.resolve(packaged, cache)
+        assertEquals(dest.absolutePath, dest2.absolutePath)
+    }
+
+    @Test
+    fun stockfishBinaryThrowsWhenPackagedAndCacheMissing() {
+        val native = File.createTempFile("jc-native-empty", "").apply {
+            delete()
+            mkdirs()
+            deleteOnExit()
+        }
+        val cache = File.createTempFile("jc-cache-empty", "").apply {
+            delete()
+            mkdirs()
+            deleteOnExit()
+        }
+        try {
+            StockfishBinary.resolve(File(native, StockfishBinary.PACKAGED_NAME), cache)
+            throw AssertionError("expected missing binary")
+        } catch (e: IllegalStateException) {
+            assertTrue(e.message!!.contains("Stockfish binary missing"))
+            assertFalse(e.message!!.contains("arm64-v8a required"))
+        }
+    }
+
+    @Test
+    fun engineFailureBannerIsNotAbiLie() {
+        // PlayScreen no longer claims the ABI is wrong when a search is cancelled.
+        val src = sequenceOf(
+            File("src/main/java/dev/justchess/app/ui/play/PlayScreen.kt"),
+            File("app/src/main/java/dev/justchess/app/ui/play/PlayScreen.kt"),
+        ).first { it.exists() }.readText()
+        assertFalse(src.contains("arm64-v8a required"))
+        assertTrue(src.contains("Couldn't talk to Stockfish"))
     }
 }
