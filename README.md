@@ -19,7 +19,7 @@ There is no Play Store listing and no GitHub Release in v1.
 - Time: 5+0, 10+0 (default), or unlimited. Clocks tick only on that side’s turn; flag loses. Unlimited has no clock; the engine still uses a modest `movetime` with the Elo cap.
 - White / Black / random. Takebacks, resign. Draws by FIDE rule only (mate, stalemate, threefold, 50-move, insufficient material).
 - Opening book for the first 6–12 plies, with variety.
-- History is PGN; tap a game to replay. Export/import a zip of `profile.json` + PGNs.
+- History is PGN; tap a game to replay. Export one game as `.pgn` from Replay. Export/import a zip of `profile.json` + all games (profile + history).
 
 ## Build
 
