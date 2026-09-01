@@ -95,18 +95,19 @@ class AppContractTest {
         val mid = Elo.update(1500, 1500, 1.0, 0)
         assertTrue(mid > 1500)
         assertEquals(32, Elo.k(0))
-        assertEquals(32, Elo.k(19))
-        assertEquals(16, Elo.k(20))
+        assertEquals(32, Elo.k(9))
+        assertEquals(16, Elo.k(10))
         assertEquals(1500, Elo.INITIAL)
     }
 
     @Test
-    fun provisionalWindowsDifferBetweenUiAndKFactor() {
-        // Documented mismatch: Profile.provisional is <10 games, Elo K drops at 20.
+    fun provisionalWindowMatchesKFactorAtTenGames() {
+        // UI provisional and K-factor share the same 10-game window.
+        assertEquals(10, Elo.PROVISIONAL_GAMES)
         assertTrue(Profile(gamesPlayed = 9).provisional)
         assertFalse(Profile(gamesPlayed = 10).provisional)
-        assertEquals(32, Elo.k(10))
-        assertEquals(32, Elo.k(19))
+        assertEquals(32, Elo.k(9))
+        assertEquals(16, Elo.k(10))
     }
 
     @Test
@@ -114,7 +115,7 @@ class AppContractTest {
         val castleBoard = Board()
         val castleMoves = playSan(castleBoard, "e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O")
         val castlePgn = Pgn.build(
-            mapOf("Event" to "Just Chess", "White" to "Mark", "Black" to "Stockfish 18 (engine Elo 1500)"),
+            mapOf("Event" to "Just Chess", "White" to "Mark", "Black" to "Stockfish 17.1 (engine Elo 1500)"),
             castleMoves,
             "*",
         )
@@ -228,7 +229,7 @@ class AppContractTest {
         assertEquals("1-0", restoredGames[0].result)
         assertEquals(1500, restoredGames[0].engineElo)
         assertEquals(restoredPgns["game-abc"], restoredGames[0].pgn)
-        assertTrue(restoredGames[0].pgn.contains("Stockfish 18 (engine Elo 1500)"))
+        assertTrue(restoredGames[0].pgn.contains("Stockfish 17.1 (engine Elo 1500)"))
     }
 
     @Test
@@ -242,6 +243,16 @@ class AppContractTest {
 
     @Test
     fun pgnEnginePlayerNameFormat() {
-        assertEquals("Stockfish 18 (engine Elo 2300)", Pgn.enginePlayerName(2300))
+        assertEquals("Stockfish 17.1 (engine Elo 2300)", Pgn.enginePlayerName(2300))
+        assertEquals("Stockfish 17.1 (engine Elo 1500)", Pgn.enginePlayerName(1500))
+    }
+
+    @Test
+    fun openingSummaryFirstPliesAsSan() {
+        val board = Board()
+        val moves = playSan(board, "e4 e5 Nf3")
+        val pgn = Pgn.build(mapOf("Event" to "Just Chess"), moves, "*")
+        assertEquals("1.e4 e5 2.Nf3", Pgn.openingSummary(pgn))
+        assertEquals("", Pgn.openingSummary(""))
     }
 }

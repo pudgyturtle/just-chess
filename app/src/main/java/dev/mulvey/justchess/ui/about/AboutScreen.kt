@@ -44,7 +44,7 @@ fun AboutScreen(onBack: () -> Unit) {
             appendLine()
             appendLine("Engine: Stockfish ${BuildConfig.STOCKFISH_VERSION} (official android-armv8 build, NNUE embedded).")
             appendLine("Stockfish is copyright the Stockfish authors and licensed under GPL-3.0.")
-            appendLine("Source: https://github.com/official-stockfish/Stockfish/tree/sf_18")
+            appendLine("Source: https://github.com/official-stockfish/Stockfish/tree/sf_${BuildConfig.STOCKFISH_VERSION}")
             appendLine()
             appendLine("Rules library: chesslib (Apache-2.0) by Ben-Hur Carlos Vieira Langoni Junior.")
             appendLine()

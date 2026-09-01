@@ -9,7 +9,7 @@ import kotlin.math.roundToInt
  */
 object Elo {
     const val INITIAL = 1500
-    const val PROVISIONAL_GAMES = 20
+    const val PROVISIONAL_GAMES = 10
 
     fun expected(player: Int, opponent: Int): Double {
         return 1.0 / (1.0 + 10.0.pow((opponent - player) / 400.0))

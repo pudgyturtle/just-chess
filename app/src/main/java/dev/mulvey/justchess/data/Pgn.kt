@@ -6,6 +6,7 @@ import com.github.bhlangonijr.chesslib.move.Move
 import com.github.bhlangonijr.chesslib.move.MoveList
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import dev.mulvey.justchess.BuildConfig
 
 object Pgn {
     fun build(
@@ -72,7 +73,29 @@ object Pgn {
 
     fun today(): String = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE).replace('-', '.')
 
-    fun enginePlayerName(elo: Int): String = "Stockfish 18 (engine Elo $elo)"
+    fun enginePlayerName(elo: Int): String =
+        "Stockfish ${BuildConfig.STOCKFISH_VERSION} (engine Elo $elo)"
+
+    /** First ~6 plies as compact SAN, e.g. `1.e4 e5 2.Nf3`. Derived from stored PGN. */
+    fun openingSummary(pgn: String, maxPlies: Int = 6): String {
+        val moves = try {
+            parseMoves(pgn)
+        } catch (_: Exception) {
+            return ""
+        }
+        val sans = sanList(moves).take(maxPlies)
+        if (sans.isEmpty()) return ""
+        val sb = StringBuilder()
+        sans.forEachIndexed { i, san ->
+            if (i % 2 == 0) {
+                if (sb.isNotEmpty()) sb.append(' ')
+                sb.append(i / 2 + 1).append('.').append(san)
+            } else {
+                sb.append(' ').append(san)
+            }
+        }
+        return sb.toString()
+    }
 
     private fun stripTags(pgn: String): String {
         return pgn.lineSequence()

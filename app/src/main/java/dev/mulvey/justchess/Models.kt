@@ -1,5 +1,6 @@
 package dev.mulvey.justchess
 
+import dev.mulvey.justchess.rating.Elo
 import kotlinx.serialization.Serializable
 
 object EngineLevels {
@@ -55,7 +56,7 @@ data class Profile(
     val lastTimeControlId: String = TimeControl.TEN.id,
     val lastColor: String = ColorChoice.WHITE.name,
 ) {
-    val provisional: Boolean get() = gamesPlayed < 10
+    val provisional: Boolean get() = gamesPlayed < Elo.PROVISIONAL_GAMES
     fun ratingLabel(): String {
         if (gamesPlayed == 0) return "Unrated"
         val n = rating.toInt()
@@ -78,7 +79,7 @@ data class GameRecord(
     val termination: String,
     val plyCount: Int,
     val appVersion: String = "1.0.0",
-    val stockfishVersion: String = "18",
+    val stockfishVersion: String = "17.1",
 )
 
 data class ClockState(

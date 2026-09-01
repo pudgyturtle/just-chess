@@ -159,7 +159,7 @@ class ChessRulesTest {
             mapOf(
                 "Event" to "Just Chess",
                 "White" to "Mark",
-                "Black" to "Stockfish 18 (engine Elo 1500)",
+                "Black" to "Stockfish 17.1 (engine Elo 1500)",
             ),
             moves,
             "*",

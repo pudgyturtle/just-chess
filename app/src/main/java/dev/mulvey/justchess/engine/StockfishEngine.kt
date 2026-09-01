@@ -28,7 +28,7 @@ class StockfishEngine(private val binary: File) {
     private val searching = AtomicBoolean(false)
 
     @Volatile
-    var engineId: String = "Stockfish 18"
+    var engineId: String = "Stockfish 17.1"
         private set
 
     val threads: Int = 1
