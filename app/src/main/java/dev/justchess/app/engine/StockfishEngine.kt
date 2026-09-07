@@ -25,6 +25,7 @@ import kotlinx.coroutines.yield
 class StockfishEngine(
     private val packaged: File,
     private val cacheDir: File? = null,
+    private val analysisMode: Boolean = false,
 ) {
     private val mutex = Mutex()
     private val writeLock = Any()
@@ -39,7 +40,9 @@ class StockfishEngine(
         private set
 
     val threads: Int = 1
-    val hashMb: Int = 32
+    val hashMb: Int = if (analysisMode) 64 else 32
+
+    val isAnalysisMode: Boolean get() = analysisMode
 
     suspend fun ensureStarted() = withContext(Dispatchers.IO) {
         mutex.withLock { startLocked() }
@@ -91,6 +94,11 @@ class StockfishEngine(
             sendRaw("setoption name Threads value $threads")
             sendRaw("setoption name Hash value $hashMb")
             sendRaw("setoption name Ponder value false")
+            if (analysisMode) {
+                sendRaw("setoption name UCI_LimitStrength value false")
+                sendRaw("setoption name Skill Level value 20")
+                sendRaw("setoption name MultiPV value 2")
+            }
             sendRaw("isready")
             if (!waitForLocked("readyok", 30_000)) {
                 errors += "no readyok from ${binary.absolutePath}"
@@ -184,7 +192,38 @@ class StockfishEngine(
         }
     }
 
-    suspend fun stopSearch() = withContext(Dispatchers.IO) {
+    suspend fun analyze(
+        uciMovesFromStart: List<String>,
+        movetimeMs: Long = 250,
+        depth: Int? = null,
+        multiPv: Int = 2,
+    ): EngineAnalysis = withContext(Dispatchers.IO) {
+        require(analysisMode) { "Analysis requires an analysis Stockfish session" }
+        mutex.withLock {
+            startLocked()
+            sendRaw("setoption name UCI_LimitStrength value false")
+            sendRaw("setoption name Skill Level value 20")
+            sendRaw("setoption name MultiPV value ${multiPv.coerceAtLeast(2)}")
+            sendRaw("isready")
+            if (!waitForLocked("readyok", 15_000)) throw IllegalStateException("Stockfish not ready for analysis")
+            val pos = if (uciMovesFromStart.isEmpty()) "position startpos" else "position startpos moves ${uciMovesFromStart.joinToString(" ")}"
+            sendRaw(pos)
+            searching.set(true)
+            sendRaw(if (depth != null) "go depth ${depth.coerceAtLeast(1)}" else "go movetime ${movetimeMs.coerceAtLeast(1)}")
+        }
+        try {
+            readAnalysis(movetimeMs.coerceAtLeast(1) * 20L + 5_000)
+        } catch (e: CancellationException) {
+            sendRaw("stop")
+            drainBestmove(2_000)
+            throw e
+        } finally {
+            searching.set(false)
+        }
+    }
+
+
+    suspend fun stopSearch() = withContext(Dispatchers.IO) { 
         if (process?.isAlive == true) {
             sendRaw("stop")
         }
@@ -224,6 +263,42 @@ class StockfishEngine(
             if (line.contains(token)) return true
         }
         return false
+    }
+
+    private suspend fun readAnalysis(timeoutMs: Long): EngineAnalysis {
+        val r = reader ?: throw IllegalStateException("engine reader missing")
+        val deadline = System.currentTimeMillis() + timeoutMs
+        val lines = linkedMapOf<Int, EngineLine>()
+        var bestmove: String? = null
+        while (System.currentTimeMillis() < deadline) {
+            yield()
+            if (!coroutineContext.isActive) throw CancellationException()
+            val line = if (r.ready()) r.readLine() else { delay(20); null }
+            if (line == null) continue
+            if (line.startsWith("info ")) parseInfoLine(line)?.let { lines[it.multipv] = it }
+            if (line.startsWith("bestmove ")) {
+                bestmove = line.split(Regex("\\s+")).getOrNull(1)?.trim()
+                break
+            }
+        }
+        if (bestmove == null) { sendRaw("stop"); bestmove = drainBestmove(2_000) }
+        if (bestmove.isNullOrBlank()) throw IllegalStateException("Stockfish did not return analysis bestmove")
+        return EngineAnalysis(lines.values.sortedBy { it.multipv }, bestmove!!)
+    }
+
+    private fun parseInfoLine(line: String): EngineLine? {
+        val tokens = line.split(Regex("\\s+"))
+        val at = tokens.indexOf("score")
+        if (at < 0 || at + 2 >= tokens.size) return null
+        val score = when (tokens[at + 1]) {
+            "cp" -> tokens[at + 2].toIntOrNull()?.let { EngineScore.Cp(it) }
+            "mate" -> tokens[at + 2].toIntOrNull()?.let { EngineScore.Mate(it) }
+            else -> null
+        } ?: return null
+        val mpvAt = tokens.indexOf("multipv")
+        val mpv = if (mpvAt >= 0) tokens.getOrNull(mpvAt + 1)?.toIntOrNull() ?: 1 else 1
+        val pvAt = tokens.indexOf("pv")
+        return EngineLine(mpv, score, if (pvAt >= 0) tokens.drop(pvAt + 1) else emptyList())
     }
 
     private suspend fun readUntilBestmove(timeoutMs: Long): String {

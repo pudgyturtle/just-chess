@@ -29,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -56,7 +57,7 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PlayScreen(vm: GameViewModel) {
+fun PlayScreen(vm: GameViewModel, onReport: (String) -> Unit) {
     val state by vm.ui.collectAsState()
     val view = LocalView.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -76,6 +77,10 @@ fun PlayScreen(vm: GameViewModel) {
     var setupColor by remember { mutableStateOf(ColorChoice.WHITE) }
     var setupTime by remember { mutableStateOf(TimeControl.TEN) }
     var setupElo by remember { mutableStateOf(EngineLevels.DEFAULT) }
+    var gameOverSheetId by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(state.lastFinishedGameId) {
+        if (state.gameOver && state.lastFinishedGameId != null) gameOverSheetId = state.lastFinishedGameId
+    }
 
     Column(
         modifier = Modifier
@@ -292,6 +297,36 @@ fun PlayScreen(vm: GameViewModel) {
             dismissButton = { TextButton(onClick = { vm.cancelPromotion() }) { Text("Cancel") } },
         )
     }
+
+    gameOverSheetId?.let { gameId ->
+        if (state.gameOver) {
+            ModalBottomSheet(
+                onDismissRequest = { gameOverSheetId = null },
+                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            ) {
+                Column(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
+                    Text("Game complete", style = MaterialTheme.typography.headlineMedium)
+                    Text(state.resultHeadline, modifier = Modifier.padding(top = 6.dp))
+                    Text(state.resultDetail, style = MaterialTheme.typography.bodySmall)
+                    Button(
+                        onClick = {
+                            gameOverSheetId = null
+                            onReport(gameId)
+                        },
+                        modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                    ) { Text("View report") }
+                    OutlinedButton(
+                        onClick = {
+                            gameOverSheetId = null
+                            vm.openNewGameSheet()
+                        },
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
+                    ) { Text("Play again") }
+                }
+            }
+        }
+    }
+
 
     if (confirmResign) {
         AlertDialog(

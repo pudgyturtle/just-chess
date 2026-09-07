@@ -48,6 +48,7 @@ import com.github.bhlangonijr.chesslib.Side
 import com.github.bhlangonijr.chesslib.Square
 import com.github.bhlangonijr.chesslib.move.Move
 import dev.justchess.app.GameRecord
+import dev.justchess.app.analysis.AnalysisState
 import dev.justchess.app.GameViewModel
 import dev.justchess.app.data.Pgn
 import dev.justchess.app.ui.board.ChessBoard
@@ -111,12 +112,13 @@ private fun HistoryRow(g: GameRecord, onClick: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ReplayScreen(vm: GameViewModel, id: String, onBack: () -> Unit) {
+fun ReplayScreen(vm: GameViewModel, id: String, onBack: () -> Unit, onReport: (String) -> Unit) {
     val games by vm.history.collectAsState()
     val game = games.firstOrNull { it.id == id }
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
     val pgnText = game?.pgn.orEmpty()
+    val analysis by vm.analysis.collectAsState()
     val exportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/x-chess-pgn"),
     ) { uri: Uri? ->
@@ -137,6 +139,18 @@ fun ReplayScreen(vm: GameViewModel, id: String, onBack: () -> Unit) {
         if (game == null) {
             Text("Game not found", Modifier.padding(16.dp))
             return
+        }
+        Button(onClick = { onReport(game.id) }) { Text("Review / Report") }
+        if (analysis.gameId == game.id && analysis.state == AnalysisState.RUNNING) {
+            Text("Analyzing move ${analysis.completed}/${analysis.total}", Modifier.padding(16.dp))
+            OutlinedButton(onClick = vm::cancelAnalysis, Modifier.padding(horizontal = 16.dp)) { Text("Cancel") }
+        }
+        if (analysis.gameId == game.id && analysis.state == AnalysisState.FAILED) {
+            Text("Analysis failed: ${analysis.error}", Modifier.padding(16.dp))
+        }
+        analysis.cache?.analysis?.takeIf { analysis.gameId == game.id }?.let { result ->
+            Text("Engine accuracy ${result.engineAccuracy.toInt()}% · mean CPL ${result.meanCpl.toInt()}", Modifier.padding(16.dp))
+            Text(result.plies.joinToString("\\n") { "${it.ply}. ${it.playedUci} → ${it.classification.name} (best ${it.bestUci}, loss ${it.lossCp} cp)" }, Modifier.padding(horizontal = 16.dp))
         }
         val moves = remember(game.pgn) {
             runCatching { Pgn.parseMoves(game.pgn) }.getOrDefault(emptyList())

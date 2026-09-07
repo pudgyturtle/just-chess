@@ -15,6 +15,11 @@ import dev.justchess.app.data.Pgn
 import dev.justchess.app.engine.OpeningBook
 import dev.justchess.app.engine.StockfishBinary
 import dev.justchess.app.engine.StockfishEngine
+import dev.justchess.app.analysis.AnalysisCache
+import dev.justchess.app.analysis.AnalysisSettings
+import dev.justchess.app.analysis.AnalysisState
+import dev.justchess.app.analysis.AnalysisUiState
+import dev.justchess.app.analysis.GameAnalyzer
 import kotlin.coroutines.cancellation.CancellationException
 import dev.justchess.app.rating.Elo
 import java.io.File
@@ -66,6 +71,7 @@ data class UiState(
     val engineId: String = "Stockfish ${BuildConfig.STOCKFISH_VERSION}",
     val importMessage: String? = null,
     val plyCount: Int = 0,
+    val lastFinishedGameId: String? = null,
 )
 
 class GameViewModel(application: Application) : AndroidViewModel(application) {
@@ -73,6 +79,11 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private val engine = StockfishEngine(
         File(application.applicationInfo.nativeLibraryDir, StockfishBinary.PACKAGED_NAME),
         application.codeCacheDir,
+    )
+    private val analysisEngine = StockfishEngine(
+        File(application.applicationInfo.nativeLibraryDir, StockfishBinary.PACKAGED_NAME),
+        application.codeCacheDir,
+        analysisMode = true,
     )
     private val board = Board()
     private val played = mutableListOf<Move>()
@@ -86,6 +97,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private var lastTickRt: Long = 0L
     private var clockJob: Job? = null
     private var engineJob: Job? = null
+    private var analysisJob: Job? = null
     private var inProgress = false
     private var gameOver = false
     private var finished = false
@@ -97,6 +109,9 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _history = MutableStateFlow<List<GameRecord>>(emptyList())
     val history: StateFlow<List<GameRecord>> = _history
+
+    private val _analysis = MutableStateFlow(AnalysisUiState())
+    val analysis: StateFlow<AnalysisUiState> = _analysis
 
     init {
         publish()
@@ -299,6 +314,54 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { _history.value = repo.loadGames() }
     }
 
+    fun startAnalysis(id: String, settings: AnalysisSettings = AnalysisSettings(), force: Boolean = false) {
+        val previousJob = analysisJob
+        previousJob?.cancel()
+        analysisJob = viewModelScope.launch {
+            analysisEngine.stopSearch()
+            previousJob?.join()
+            val record = _history.value.firstOrNull { it.id == id } ?: repo.loadGames().firstOrNull { it.id == id }
+            if (record == null) {
+                _analysis.value = AnalysisUiState(id, AnalysisState.FAILED, error = "Game not found")
+                return@launch
+            }
+            val version = BuildConfig.STOCKFISH_VERSION
+            val key = repo.analysisKey(id, version, settings)
+            val cached = repo.loadAnalysis(id, version, settings)
+            if (!force && cached?.state == AnalysisState.COMPLETE && cached.analysis != null) {
+                _analysis.value = AnalysisUiState(id, AnalysisState.COMPLETE, record.plyCount, record.plyCount, cached)
+                return@launch
+            }
+            val total = runCatching { Pgn.parseMoves(record.pgn).size }.getOrDefault(record.plyCount)
+            val running = AnalysisCache(id, key, AnalysisState.RUNNING)
+            repo.saveAnalysis(running)
+            _analysis.value = AnalysisUiState(id, AnalysisState.RUNNING, 0, total, running)
+            try {
+                analysisEngine.ensureStarted()
+                analysisEngine.newGame()
+                val result = GameAnalyzer(analysisEngine, version).analyze(id, record.pgn, settings) { done, all ->
+                    _analysis.value = _analysis.value.copy(gameId = id, state = AnalysisState.RUNNING, completed = done, total = all)
+                }
+                val complete = AnalysisCache(id, key, AnalysisState.COMPLETE, result)
+                repo.saveAnalysis(complete)
+                _analysis.value = AnalysisUiState(id, AnalysisState.COMPLETE, total, total, complete)
+            } catch (e: CancellationException) {
+                repo.saveAnalysis(running.copy(state = AnalysisState.STALE, error = "cancelled"))
+                _analysis.value = AnalysisUiState(id, AnalysisState.STALE, error = "cancelled")
+                throw e
+            } catch (e: Exception) {
+                val failed = AnalysisCache(id, key, AnalysisState.FAILED, error = e.message ?: e.javaClass.simpleName)
+                repo.saveAnalysis(failed)
+                _analysis.value = AnalysisUiState(id, AnalysisState.FAILED, error = failed.error)
+            }
+        }
+    }
+
+    fun cancelAnalysis() {
+        analysisJob?.cancel()
+        viewModelScope.launch { analysisEngine.stopSearch() }
+    }
+
     suspend fun exportBackup(): ByteArray = repo.exportZip()
 
     suspend fun importBackup(bytes: ByteArray): Boolean {
@@ -326,7 +389,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         super.onCleared()
         clockJob?.cancel()
         engineJob?.cancel()
-        viewModelScope.launch { engine.quit() }
+        analysisJob?.cancel()
+        viewModelScope.launch { engine.quit(); analysisEngine.quit() }
     }
 
     private fun lastSideToHaveMoved(): Side? {
@@ -536,6 +600,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                     resultHeadline = headline,
                     resultDetail = playerResultLine(playerWon, newRating),
                     showNewGame = false,
+                    lastFinishedGameId = record.id,
                 )
             }
             publish()
