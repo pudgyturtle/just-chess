@@ -53,6 +53,7 @@ fun ReportScreen(
     id: String,
     onBack: () -> Unit,
     onAnalyzeGame: () -> Unit,
+    onHome: () -> Unit,
 ) {
     val games by vm.history.collectAsState()
     val analysisState by vm.analysis.collectAsState()
@@ -72,6 +73,7 @@ fun ReportScreen(
                     Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
                 }
             },
+            actions = { TextButton(onClick = onHome) { Text("Home") } },
         )
         if (game == null) {
             Text("Game not found", Modifier.padding(20.dp))
@@ -163,7 +165,16 @@ private fun ReportSummary(game: GameRecord, result: GameAnalysis, onAnalyzeGame:
     Text("Analysis preset", style = MaterialTheme.typography.titleMedium)
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         AnalysisPreset.entries.forEach { preset ->
-            OutlinedButton(onClick = { selectedPreset = preset }, modifier = Modifier.weight(1f)) { Text(preset.label) }
+            val selected = selectedPreset == preset
+            if (selected) {
+                Button(onClick = { selectedPreset = preset }, modifier = Modifier.weight(1f)) {
+                    Text(preset.label)
+                }
+            } else {
+                OutlinedButton(onClick = { selectedPreset = preset }, modifier = Modifier.weight(1f)) {
+                    Text(preset.label)
+                }
+            }
         }
     }
     Text("Selected: " + selectedPreset.label + " · deeper settings take longer and use more battery", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

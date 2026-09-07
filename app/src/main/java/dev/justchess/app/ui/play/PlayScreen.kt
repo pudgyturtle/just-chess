@@ -57,7 +57,7 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PlayScreen(vm: GameViewModel, onReport: (String) -> Unit) {
+fun PlayScreen(vm: GameViewModel, onReport: (String) -> Unit, onHome: () -> Unit) {
     val state by vm.ui.collectAsState()
     val view = LocalView.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -93,6 +93,7 @@ fun PlayScreen(vm: GameViewModel, onReport: (String) -> Unit) {
                 containerColor = MaterialTheme.colorScheme.background,
             ),
             actions = {
+                TextButton(onClick = onHome) { Text("Home") }
                 TextButton(onClick = {
                     setupColor = runCatching { ColorChoice.valueOf(state.profile.lastColor) }
                         .getOrDefault(ColorChoice.WHITE)
@@ -322,6 +323,13 @@ fun PlayScreen(vm: GameViewModel, onReport: (String) -> Unit) {
                         },
                         modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
                     ) { Text("Play again") }
+                    TextButton(
+                        onClick = {
+                            gameOverSheetId = null
+                            onHome()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text("Done") }
                 }
             }
         }

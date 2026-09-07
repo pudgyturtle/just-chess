@@ -21,6 +21,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -70,7 +71,7 @@ private data class ReviewSnapshot(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AnalyzeGameScreen(vm: GameViewModel, id: String, onBack: () -> Unit) {
+fun AnalyzeGameScreen(vm: GameViewModel, id: String, onBack: () -> Unit, onHome: () -> Unit) {
     val games by vm.history.collectAsState()
     val analysisState by vm.analysis.collectAsState()
     val game = games.firstOrNull { it.id == id }
@@ -90,6 +91,7 @@ fun AnalyzeGameScreen(vm: GameViewModel, id: String, onBack: () -> Unit) {
                     Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
                 }
             },
+            actions = { TextButton(onClick = onHome) { Text("Done") } },
         )
         when {
             game == null -> Text("Game not found", Modifier.padding(20.dp))
@@ -143,9 +145,18 @@ private fun GuidedReview(flipped: Boolean, analysis: GameAnalysis) {
     val playedMove = moment?.let { parseMove(it.beforeFen, it.playedUci) }
     val bestMove = moment?.let { parseMove(it.beforeFen, it.bestUci) }
     val arrows = buildList {
-        playedMove?.let { add(BoardArrow(it.from, it.to, Color(0xCC4CAF50))) }
-        bestMove?.takeIf { it.toString() != playedMove?.toString() }?.let {
-            add(BoardArrow(it.from, it.to, Color(0xCCE0A83A)))
+        // Green = best/good; yellow = milder played mistake; red = Poor/Blunder (UX #2).
+        val sameMove = playedMove != null && bestMove != null &&
+            playedMove.toString() == bestMove.toString()
+        if (sameMove) {
+            playedMove?.let { add(BoardArrow(it.from, it.to, Color(0xCC4CAF50))) }
+        } else {
+            val playedColor = when (moment?.classification) {
+                Classification.BLUNDER, Classification.POOR -> Color(0xCCD32F2F)
+                else -> Color(0xCCE0A83A)
+            }
+            playedMove?.let { add(BoardArrow(it.from, it.to, playedColor)) }
+            bestMove?.let { add(BoardArrow(it.from, it.to, Color(0xCC4CAF50))) }
         }
     }
 
@@ -284,7 +295,7 @@ private fun ReviewMomentCard(moment: PlyAnalysis, isPlayerMove: Boolean, current
                 style = MaterialTheme.typography.bodyMedium,
             )
             Text("Move ${moveNumber(currentPly)} · loss ${lossText(moment.lossCp)}", style = MaterialTheme.typography.bodySmall)
-            Text("Green = played · gold = best", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Green = best/good · Yellow = played (milder) · Red = played (Poor/Blunder)", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

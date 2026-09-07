@@ -2,9 +2,9 @@ package dev.justchess.app.ui
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -31,27 +31,27 @@ import dev.justchess.app.ui.report.ReportScreen
 fun JustChessRoot(vm: GameViewModel = viewModel()) {
     val nav = rememberNavController()
     val back by nav.currentBackStackEntryAsState()
-    val route = back?.destination?.route ?: "play"
-    val hideBar = route.startsWith("replay") || route.startsWith("report") || route.startsWith("analyze") || route == "about"
+    val route = back?.destination?.route ?: "home"
+    val hideBar = route == "play" || route.startsWith("replay") || route.startsWith("report") || route.startsWith("analyze") || route == "about"
     Scaffold(
         bottomBar = {
             if (!hideBar) {
                 NavigationBar {
                     NavigationBarItem(
-                        selected = route == "play",
-                        onClick = { nav.navigate("play") { launchSingleTop = true } },
-                        icon = { Icon(Icons.Outlined.SportsEsports, contentDescription = "Play") },
-                        label = { Text("Play") },
+                        selected = route == "home",
+                        onClick = { nav.navigate("home") { popUpTo("home") { inclusive = false }; launchSingleTop = true } },
+                        icon = { Icon(Icons.Outlined.Home, contentDescription = "Home") },
+                        label = { Text("Home") },
                     )
                     NavigationBarItem(
                         selected = route == "history",
-                        onClick = { nav.navigate("history") { launchSingleTop = true } },
+                        onClick = { nav.navigate("history") { popUpTo("home") { inclusive = false }; launchSingleTop = true } },
                         icon = { Icon(Icons.Outlined.History, contentDescription = "History") },
                         label = { Text("History") },
                     )
                     NavigationBarItem(
                         selected = route == "profile",
-                        onClick = { nav.navigate("profile") { launchSingleTop = true } },
+                        onClick = { nav.navigate("profile") { popUpTo("home") { inclusive = false }; launchSingleTop = true } },
                         icon = { Icon(Icons.Outlined.Person, contentDescription = "You") },
                         label = { Text("You") },
                     )
@@ -61,18 +61,35 @@ fun JustChessRoot(vm: GameViewModel = viewModel()) {
     ) { padding ->
         NavHost(
             navController = nav,
-            startDestination = "play",
+            startDestination = "home",
             modifier = Modifier.padding(padding),
         ) {
-            composable("play") { PlayScreen(vm, onReport = { id -> nav.navigate("report/$id") }) }
+            composable("home") {
+                HomeScreen(
+                    onNewGame = {
+                        nav.navigate("play") { launchSingleTop = true }
+                        vm.openNewGameSheet()
+                    },
+                    onHistory = { nav.navigate("history") { launchSingleTop = true } },
+                    onProfile = { nav.navigate("profile") { launchSingleTop = true } },
+                    onAbout = { nav.navigate("about") { launchSingleTop = true } },
+                )
+            }
+            composable("play") {
+                PlayScreen(
+                    vm,
+                    onReport = { id -> nav.navigate("report/$id") },
+                    onHome = { nav.navigate("home") { popUpTo("home") { inclusive = false }; launchSingleTop = true } },
+                )
+            }
             composable("history") { HistoryScreen(vm, onOpen = { id -> nav.navigate("replay/$id") }) }
             composable("report/{id}") { entry ->
                 val id = entry.arguments?.getString("id").orEmpty()
-                ReportScreen(vm, id, onBack = { nav.popBackStack() }, onAnalyzeGame = { nav.navigate("analyze/$id") })
+                ReportScreen(vm, id, onBack = { nav.popBackStack() }, onAnalyzeGame = { nav.navigate("analyze/$id") }, onHome = { nav.navigate("home") { popUpTo("home") { inclusive = false }; launchSingleTop = true } })
             }
             composable("analyze/{id}") { entry ->
                 val id = entry.arguments?.getString("id").orEmpty()
-                AnalyzeGameScreen(vm, id, onBack = { nav.popBackStack() })
+                AnalyzeGameScreen(vm, id, onBack = { nav.popBackStack() }, onHome = { nav.navigate("home") { popUpTo("home") { inclusive = false }; launchSingleTop = true } })
             }
             composable("replay/{id}") { entry ->
                 val id = entry.arguments?.getString("id").orEmpty()
