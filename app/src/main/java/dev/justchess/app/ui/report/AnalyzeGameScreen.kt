@@ -54,6 +54,8 @@ import dev.justchess.app.ui.board.ChessBoard
 
 private val KeyClassifications = setOf(
     Classification.GREAT,
+    Classification.BRILLIANT,
+    Classification.MISS,
     Classification.CONFUSING,
     Classification.POOR,
     Classification.BLUNDER,
@@ -239,18 +241,22 @@ private fun GuidedReview(flipped: Boolean, analysis: GameAnalysis) {
         } else {
             ReviewMomentCard(moment, isPlayerMove, currentPly)
         }
-        if (moment != null && moment.pv.isNotEmpty()) {
-            Text("Engine line", Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.titleMedium)
-            Text(
-                moment.pv.take(5).joinToString("  ") { prettyUci(it) },
-                Modifier.padding(horizontal = 16.dp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+        if (!playing && moment != null && moment.multiPv.size > 1) MultiPvPanel(moment.multiPv)
         Spacer(Modifier.height(8.dp))
     }
 }
 
+@Composable
+private fun MultiPvPanel(lines: List<dev.justchess.app.analysis.AnalysisLine>) {
+    Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Text("Free engine lines", style = MaterialTheme.typography.titleMedium)
+            lines.take(3).forEachIndexed { index, line ->
+                Text((index + 1).toString() + ". " + scoreText(line.score) + "  " + line.pv.take(5).joinToString("  ") { prettyUci(it) }, style = MaterialTheme.typography.bodySmall)
+            }
+        }
+    }
+}
 @Composable
 private fun ReviewMomentCard(moment: PlyAnalysis, isPlayerMove: Boolean, currentPly: Int) {
     val badge = moment.classification.name.lowercase().replaceFirstChar { it.uppercase() }
@@ -258,6 +264,8 @@ private fun ReviewMomentCard(moment: PlyAnalysis, isPlayerMove: Boolean, current
     val best = prettyUci(moment.bestUci)
     val actor = if (isPlayerMove) "You" else "Stockfish"
     val coach = when (moment.classification) {
+        Classification.BRILLIANT -> actor + " sacrificed material and the engine agrees: " + best + " is best."
+        Classification.MISS -> actor + " missed the chance to punish the opponent's mistake. Better was " + best + " (" + lossText(moment.lossCp) + ")."
         Classification.GREAT -> "$actor played $played. Only move that keeps the advantage: $best."
         Classification.CONFUSING -> "$actor played $played. Better was $best (${lossText(moment.lossCp)})."
         Classification.POOR, Classification.BLUNDER -> "$actor played $played. Better was $best (${lossText(moment.lossCp)})."
@@ -313,6 +321,8 @@ private fun scoreText(score: AnalysisScore): String = score.mate?.let { if (it >
     "${if (cp >= 0) "+" else "−"}${"%.2f".format(kotlin.math.abs(cp) / 100.0)}"
 }
 private fun classificationColor(classification: Classification): Color = when (classification) {
+    Classification.BRILLIANT -> Color(0xFF246B8F)
+    Classification.MISS -> Color(0xFF8A4F9E)
     Classification.GREAT -> Color(0xFF347A52)
     Classification.CONFUSING -> Color(0xFF8B6A26)
     Classification.POOR -> Color(0xFF9A552F)

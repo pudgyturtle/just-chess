@@ -28,6 +28,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
@@ -36,6 +39,8 @@ import androidx.compose.ui.unit.dp
 import dev.justchess.app.GameRecord
 import dev.justchess.app.GameViewModel
 import dev.justchess.app.analysis.AnalysisState
+import dev.justchess.app.analysis.AnalysisPreset
+import dev.justchess.app.analysis.AnalysisPhase
 import dev.justchess.app.analysis.Classification
 import dev.justchess.app.analysis.GameAnalysis
 import dev.justchess.app.analysis.PlyAnalysis
@@ -113,7 +118,7 @@ fun ReportScreen(
                     if (result == null) {
                         Text("Analysis result is unavailable.")
                     } else {
-                        ReportSummary(game, result, onAnalyzeGame, onReanalyze = { vm.startAnalysis(id, force = true) })
+                        ReportSummary(game, result, onAnalyzeGame, onReanalyze = { preset -> vm.startAnalysis(id, preset.settings(), force = true) })
                     }
                 }
                 else -> {
@@ -121,7 +126,7 @@ fun ReportScreen(
                 }
             }
             Text(
-                "Classifications use on-device Stockfish and a transparent centipawn-loss model; they are not Chess.com accuracy or labels.",
+                "Classifications use on-device Stockfish and a transparent centipawn-loss model; they are not Chess.com accuracy or labels; Miss and Brilliant are heuristics.",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -131,7 +136,7 @@ fun ReportScreen(
 }
 
 @Composable
-private fun ReportSummary(game: GameRecord, result: GameAnalysis, onAnalyzeGame: () -> Unit, onReanalyze: () -> Unit) {
+private fun ReportSummary(game: GameRecord, result: GameAnalysis, onAnalyzeGame: () -> Unit, onReanalyze: (AnalysisPreset) -> Unit) {
     val playerIsWhite = game.playerColor == "WHITE"
     val playerMoves = result.plies.filter { (it.ply % 2 == 1) == playerIsWhite }
     val counts = Classification.entries.associateWith { classification ->
@@ -140,6 +145,7 @@ private fun ReportSummary(game: GameRecord, result: GameAnalysis, onAnalyzeGame:
     val playerMeanCpl = playerMoves.map { it.lossCp }.average().takeIf { it.isFinite() } ?: 0.0
     val playerAccuracy = MoveClassifier.accuracy(playerMeanCpl)
     val bestCount = (counts[Classification.BEST] ?: 0) + (counts[Classification.BOOK] ?: 0)
+    var selectedPreset by remember(result.settings.preset) { mutableStateOf(result.settings.preset) }
 
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -150,26 +156,45 @@ private fun ReportSummary(game: GameRecord, result: GameAnalysis, onAnalyzeGame:
     }
     Text("Your moves", style = MaterialTheme.typography.titleMedium)
     CountsGrid(bestCount, counts)
+    Text("Accuracy by phase", style = MaterialTheme.typography.titleMedium)
+    PhaseAccuracy(playerMoves)
     Text("Evaluation over the game", style = MaterialTheme.typography.titleMedium)
     EvalSparkline(result.plies, playerIsWhite)
+    Text("Analysis preset", style = MaterialTheme.typography.titleMedium)
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        AnalysisPreset.entries.forEach { preset ->
+            OutlinedButton(onClick = { selectedPreset = preset }, modifier = Modifier.weight(1f)) { Text(preset.label) }
+        }
+    }
+    Text("Selected: " + selectedPreset.label + " · deeper settings take longer and use more battery", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Button(onClick = onAnalyzeGame, modifier = Modifier.weight(1f)) { Text("Analyze Game") }
-        OutlinedButton(onClick = onReanalyze) {
-            Text("Re-analyze")
-        }
+        OutlinedButton(onClick = { onReanalyze(selectedPreset) }) { Text("Re-analyze") }
     }
     TextButton(onClick = onAnalyzeGame) { Text("Start guided review") }
 }
 
 @Composable
+private fun PhaseAccuracy(playerMoves: List<PlyAnalysis>) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        AnalysisPhase.entries.forEach { phase ->
+            val moves = playerMoves.filter { it.phase == phase }
+            val cpl = moves.map { it.lossCp }.average().takeIf { it.isFinite() } ?: 0.0
+            Card(Modifier.weight(1f)) { Column(Modifier.padding(8.dp)) { Text("${phase.name.lowercase().replaceFirstChar { it.uppercase() }}", style = MaterialTheme.typography.labelSmall); Text("${MoveClassifier.accuracy(cpl).toInt()}%", style = MaterialTheme.typography.titleMedium); Text("${moves.size} moves", style = MaterialTheme.typography.labelSmall) } }
+        }
+    }
+}
+@Composable
 private fun CountsGrid(best: Int, counts: Map<Classification, Int>) {
     val items = listOf(
         "Best" to best,
         "Great" to (counts[Classification.GREAT] ?: 0),
+        "Brilliant" to (counts[Classification.BRILLIANT] ?: 0),
         "Good" to (counts[Classification.GOOD] ?: 0),
         "Confusing" to (counts[Classification.CONFUSING] ?: 0),
         "Poor" to (counts[Classification.POOR] ?: 0),
         "Blunder" to (counts[Classification.BLUNDER] ?: 0),
+        "Miss" to (counts[Classification.MISS] ?: 0),
     )
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         items.chunked(3).forEach { row ->

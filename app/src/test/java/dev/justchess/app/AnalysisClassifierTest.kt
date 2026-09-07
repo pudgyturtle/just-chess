@@ -20,6 +20,13 @@ class AnalysisClassifierTest {
         assertEquals(Classification.POOR, MoveClassifier.classify(80))
         assertEquals(Classification.BLUNDER, MoveClassifier.classify(200))
     }
+    @Test fun missMarksFailureToPunishAnOpponentBlunder() {
+        assertEquals(Classification.MISS, MoveClassifier.classify(ClassificationInput(60, opponentBlunderPrevious = true)))
+        assertEquals(Classification.BLUNDER, MoveClassifier.classify(ClassificationInput(240, opponentBlunderPrevious = true)))
+    }
+    @Test fun brilliantMarksBestHangingMaterialSacrifice() {
+        assertEquals(Classification.BRILLIANT, MoveClassifier.classify(ClassificationInput(20, sacrifice = true)))
+    }
     @Test fun nearBestOnlyMoveIsGreatAndZeroIsBest() {
         assertEquals(Classification.BEST, MoveClassifier.classify(0))
         assertEquals(Classification.GREAT, MoveClassifier.classify(ClassificationInput(31, onlyGoodMove = true)))

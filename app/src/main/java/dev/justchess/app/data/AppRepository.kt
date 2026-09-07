@@ -55,7 +55,7 @@ class AppRepository(context: Context) {
     }
 
     fun analysisKey(gameId: String, engineVersion: String, settings: AnalysisSettings): String {
-        val raw = "$gameId|$engineVersion|${settings.movetimeMs}|${settings.depth}|${settings.multiPv}|${settings.bookPlies}|${settings.classifierVersion}"
+        val raw = "$gameId|$engineVersion|${settings.preset}|${settings.movetimeMs}|${settings.depth}|${settings.multiPv}|${settings.bookPlies}|${settings.classifierVersion}"
         return MessageDigest.getInstance("SHA-256").digest(raw.toByteArray()).joinToString("") { "%02x".format(it) }
     }
 

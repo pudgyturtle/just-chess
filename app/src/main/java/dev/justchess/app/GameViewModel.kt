@@ -339,7 +339,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 analysisEngine.ensureStarted()
                 analysisEngine.newGame()
-                val result = GameAnalyzer(analysisEngine, version).analyze(id, record.pgn, settings) { done, all ->
+                val result = GameAnalyzer(analysisEngine, version).analyze(id, record.pgn, settings, record.playerColor) { done, all ->
                     _analysis.value = _analysis.value.copy(gameId = id, state = AnalysisState.RUNNING, completed = done, total = all)
                 }
                 val complete = AnalysisCache(id, key, AnalysisState.COMPLETE, result)
