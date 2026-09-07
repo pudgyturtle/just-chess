@@ -212,7 +212,7 @@ class StockfishEngine(
             sendRaw(if (depth != null) "go depth ${depth.coerceAtLeast(1)}" else "go movetime ${movetimeMs.coerceAtLeast(1)}")
         }
         try {
-            readAnalysis(movetimeMs.coerceAtLeast(1) * 20L + 5_000)
+            readAnalysis(if (depth != null) depth.coerceAtLeast(1) * 300L + 10_000 else movetimeMs.coerceAtLeast(1) * 20L + 5_000)
         } catch (e: CancellationException) {
             sendRaw("stop")
             drainBestmove(2_000)
