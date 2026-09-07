@@ -23,6 +23,28 @@ android {
         buildConfigField("String", "SOURCE_URL", "\"https://github.com/pudgyturtle/just-chess\"")
     }
 
+    // Release signing is optional locally. CI sets SIGNING_* env vars from GitHub secrets.
+    val releaseStoreFile = System.getenv("SIGNING_STORE_FILE")
+    val releaseStorePassword = System.getenv("SIGNING_STORE_PASSWORD")
+    val releaseKeyAlias = System.getenv("SIGNING_KEY_ALIAS")
+    val releaseKeyPassword = System.getenv("SIGNING_KEY_PASSWORD")
+    val hasReleaseSigning =
+        !releaseStoreFile.isNullOrBlank() &&
+            !releaseStorePassword.isNullOrBlank() &&
+            !releaseKeyAlias.isNullOrBlank() &&
+            !releaseKeyPassword.isNullOrBlank()
+
+    signingConfigs {
+        create("release") {
+            if (hasReleaseSigning) {
+                storeFile = file(releaseStoreFile!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -30,6 +52,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
         debug {
             isMinifyEnabled = false

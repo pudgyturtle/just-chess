@@ -6,12 +6,19 @@ Offline chess for GrapheneOS. Play against on-device **Stockfish 17.1** at label
 
 ## Install on GrapheneOS
 
-1. Build a debug APK (below) or take `app/build/outputs/apk/debug/app-debug.apk`.
-2. Copy it to the phone (USB, Syncthing, etc.).
-3. Open the APK on the device and install. GrapheneOS will warn that it is not Play-signed; that is expected.
+### From GitHub Releases (recommended)
+
+1. Open [Releases](https://github.com/pudgyturtle/just-chess/releases) and download the latest `.apk` (arm64 / Pixel).
+2. Open the APK on the phone and install. GrapheneOS will warn that it is not Play-signed; that is expected.
+3. Optional: track updates with [Obtainium](https://github.com/ImranR98/Obtainium) → add `https://github.com/pudgyturtle/just-chess` (GitHub Releases source).
 4. Uninstall wipes the local profile and history. Use **You → Export backup zip** first.
 
-There is no Play Store listing and no GitHub Release in v1.
+There is no Play Store listing. Public builds are GitHub Release APKs only.
+
+### Build locally
+
+1. Build a debug APK (below) or take `app/build/outputs/apk/debug/app-debug.apk`.
+2. Copy it to the phone (USB, Syncthing, etc.) and install.
 
 ## Play
 
