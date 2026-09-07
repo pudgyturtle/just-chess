@@ -9,14 +9,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.justchess.app.R
 import com.github.bhlangonijr.chesslib.Piece
 import com.github.bhlangonijr.chesslib.Square
 import dev.justchess.app.ui.theme.BoardCheck
@@ -42,6 +45,8 @@ fun ChessBoard(
 ) {
     val measurer = rememberTextMeasurer()
     val coordStyle = TextStyle(color = CoordColor, fontSize = 11.sp)
+    val knightWhite = ImageBitmap.imageResource(R.drawable.piece_knight_white)
+    val knightBlack = ImageBitmap.imageResource(R.drawable.piece_knight_black)
     Canvas(
         modifier = modifier
             .fillMaxWidth()
@@ -90,9 +95,9 @@ fun ChessBoard(
             val rank = square.rank.ordinal
             val col = if (flipped) 7 - file else file
             val row = if (flipped) rank else 7 - rank
-            val pad = sq * 0.08f
+            val pad = sq * 0.125f
             translate(col * sq + pad, row * sq + pad) {
-                drawChessPiece(piece, sq - pad * 2)
+                drawChessPiece(piece, sq - pad * 2, knightWhite, knightBlack)
             }
         }
         val files = "abcdefgh"

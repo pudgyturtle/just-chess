@@ -176,7 +176,7 @@ fun PlayScreen(vm: GameViewModel) {
         }
         if (!state.engineAvailable) {
             Text(
-                "Stockfish binary not found on this ABI (arm64-v8a required).",
+                "Couldn't talk to Stockfish. Try New game.",
                 modifier = Modifier.padding(16.dp),
                 color = MaterialTheme.colorScheme.error,
             )
