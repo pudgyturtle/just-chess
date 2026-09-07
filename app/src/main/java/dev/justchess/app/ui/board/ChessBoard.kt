@@ -9,6 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.translate
@@ -30,6 +31,8 @@ import dev.justchess.app.ui.theme.BoardLight
 import dev.justchess.app.ui.theme.BoardSelected
 import dev.justchess.app.ui.theme.CoordColor
 
+data class BoardArrow(val from: Square, val to: Square, val color: Color)
+
 @Composable
 fun ChessBoard(
     pieces: Map<Square, Piece>,
@@ -39,6 +42,7 @@ fun ChessBoard(
     lastFrom: Square?,
     lastTo: Square?,
     checkSquare: Square?,
+    arrows: List<BoardArrow> = emptyList(),
     interactive: Boolean,
     onSquare: (Square) -> Unit,
     modifier: Modifier = Modifier,
@@ -89,6 +93,28 @@ fun ChessBoard(
             } else {
                 drawCircle(BoardLegal, sq * 0.14f, Offset(cx, cy))
             }
+        }
+        for (arrow in arrows) {
+            fun center(square: Square): Offset {
+                val file = square.file.ordinal
+                val rank = square.rank.ordinal
+                val col = if (flipped) 7 - file else file
+                val row = if (flipped) rank else 7 - rank
+                return Offset(col * sq + sq / 2, row * sq + sq / 2)
+            }
+            val from = center(arrow.from)
+            val to = center(arrow.to)
+            val delta = to - from
+            val distance = delta.getDistance()
+            if (distance < 1f) continue
+            val unit = delta / distance
+            val perpendicular = Offset(-unit.y, unit.x)
+            val start = from + unit * (sq * 0.16f)
+            val tip = to - unit * (sq * 0.18f)
+            val headBase = tip - unit * (sq * 0.28f)
+            drawLine(arrow.color, start, tip, strokeWidth = sq * 0.105f)
+            drawLine(arrow.color, tip, headBase + perpendicular * (sq * 0.16f), strokeWidth = sq * 0.105f)
+            drawLine(arrow.color, tip, headBase - perpendicular * (sq * 0.16f), strokeWidth = sq * 0.105f)
         }
         for ((square, piece) in pieces) {
             val file = square.file.ordinal

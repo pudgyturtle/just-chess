@@ -43,6 +43,7 @@ fun AboutScreen(onBack: () -> Unit) {
             appendLine("This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.")
             appendLine()
             appendLine("Engine: Stockfish ${BuildConfig.STOCKFISH_VERSION} (official android-armv8 build, NNUE embedded).")
+            appendLine("Review labels use on-device Stockfish centipawn/mate loss buckets, not Chess.com's model; accuracy is engine accuracy.")
             appendLine("Stockfish is copyright the Stockfish authors and licensed under GPL-3.0.")
             appendLine("Source: https://github.com/official-stockfish/Stockfish/tree/sf_${BuildConfig.STOCKFISH_VERSION}")
             appendLine()

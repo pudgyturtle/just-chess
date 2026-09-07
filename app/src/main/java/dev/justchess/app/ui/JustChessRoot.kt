@@ -24,13 +24,15 @@ import dev.justchess.app.ui.history.HistoryScreen
 import dev.justchess.app.ui.history.ReplayScreen
 import dev.justchess.app.ui.play.PlayScreen
 import dev.justchess.app.ui.profile.ProfileScreen
+import dev.justchess.app.ui.report.AnalyzeGameScreen
+import dev.justchess.app.ui.report.ReportScreen
 
 @Composable
 fun JustChessRoot(vm: GameViewModel = viewModel()) {
     val nav = rememberNavController()
     val back by nav.currentBackStackEntryAsState()
     val route = back?.destination?.route ?: "play"
-    val hideBar = route.startsWith("replay") || route == "about"
+    val hideBar = route.startsWith("replay") || route.startsWith("report") || route.startsWith("analyze") || route == "about"
     Scaffold(
         bottomBar = {
             if (!hideBar) {
@@ -62,11 +64,19 @@ fun JustChessRoot(vm: GameViewModel = viewModel()) {
             startDestination = "play",
             modifier = Modifier.padding(padding),
         ) {
-            composable("play") { PlayScreen(vm) }
+            composable("play") { PlayScreen(vm, onReport = { id -> nav.navigate("report/$id") }) }
             composable("history") { HistoryScreen(vm, onOpen = { id -> nav.navigate("replay/$id") }) }
+            composable("report/{id}") { entry ->
+                val id = entry.arguments?.getString("id").orEmpty()
+                ReportScreen(vm, id, onBack = { nav.popBackStack() }, onAnalyzeGame = { nav.navigate("analyze/$id") })
+            }
+            composable("analyze/{id}") { entry ->
+                val id = entry.arguments?.getString("id").orEmpty()
+                AnalyzeGameScreen(vm, id, onBack = { nav.popBackStack() })
+            }
             composable("replay/{id}") { entry ->
                 val id = entry.arguments?.getString("id").orEmpty()
-                ReplayScreen(vm, id, onBack = { nav.popBackStack() })
+                ReplayScreen(vm, id, onBack = { nav.popBackStack() }, onReport = { nav.navigate("report/$id") })
             }
             composable("profile") { ProfileScreen(vm, onAbout = { nav.navigate("about") }) }
             composable("about") { AboutScreen(onBack = { nav.popBackStack() }) }

@@ -3,11 +3,17 @@ package dev.justchess.app.data
 import android.content.Context
 import dev.justchess.app.GameRecord
 import dev.justchess.app.Profile
+import dev.justchess.app.analysis.AnalysisCache
+import dev.justchess.app.analysis.AnalysisSettings
+import dev.justchess.app.analysis.AnalysisState
+import dev.justchess.app.analysis.GameAnalysis
+import dev.justchess.app.analysis.MoveClassifier
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
+import java.security.MessageDigest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -20,6 +26,7 @@ class AppRepository(context: Context) {
     private val profileFile = File(files, "profile.json")
     private val gamesFile = File(files, "games.json")
     private val gamesDir = File(files, "games").apply { mkdirs() }
+    private val analysisDir = File(files, "analysis").apply { mkdirs() }
     private val json = Json { ignoreUnknownKeys = true; prettyPrint = true; encodeDefaults = true }
     private val mutex = Mutex()
 
@@ -47,6 +54,26 @@ class AppRepository(context: Context) {
         }
     }
 
+    fun analysisKey(gameId: String, engineVersion: String, settings: AnalysisSettings): String {
+        val raw = "$gameId|$engineVersion|${settings.movetimeMs}|${settings.depth}|${settings.multiPv}|${settings.bookPlies}|${settings.classifierVersion}"
+        return MessageDigest.getInstance("SHA-256").digest(raw.toByteArray()).joinToString("") { "%02x".format(it) }
+    }
+
+    suspend fun loadAnalysis(gameId: String, engineVersion: String, settings: AnalysisSettings): AnalysisCache? = mutex.withLock {
+        withContext(Dispatchers.IO) {
+            val file = File(analysisDir, "$gameId.json")
+            if (!file.exists()) return@withContext null
+            val cache = runCatching { json.decodeFromString<AnalysisCache>(file.readText()) }.getOrNull() ?: return@withContext null
+            if (cache.key != analysisKey(gameId, engineVersion, settings) || cache.analysis?.classifierVersion != settings.classifierVersion) {
+                cache.copy(state = AnalysisState.STALE)
+            } else cache
+        }
+    }
+
+    suspend fun saveAnalysis(cache: AnalysisCache) = mutex.withLock {
+        withContext(Dispatchers.IO) { File(analysisDir, "${cache.gameId}.json").writeText(json.encodeToString(cache)) }
+    }
+
     suspend fun exportZip(): ByteArray = mutex.withLock {
         withContext(Dispatchers.IO) {
             val profile = if (profileFile.exists()) profileFile.readText() else json.encodeToString(Profile())
@@ -62,6 +89,11 @@ class AppRepository(context: Context) {
                     zip.closeEntry()
                     zip.putNextEntry(ZipEntry("games/${g.id}.json"))
                     zip.write(json.encodeToString(g).toByteArray(Charsets.UTF_8))
+                    zip.closeEntry()
+                }
+                analysisDir.listFiles()?.filter { it.isFile && it.extension == "json" }?.forEach { file ->
+                    zip.putNextEntry(ZipEntry("analysis/${file.name}"))
+                    zip.write(file.readBytes())
                     zip.closeEntry()
                 }
             }
@@ -84,6 +116,10 @@ class AppRepository(context: Context) {
                             name == "profile.json" || name.endsWith("/profile.json") -> profileJson = data
                             name.endsWith(".json") && "games/" in name -> {
                                 runCatching { records += json.decodeFromString<GameRecord>(data) }
+                            }
+                            name.startsWith("analysis/") && name.endsWith(".json") -> {
+                                val cache = runCatching { json.decodeFromString<AnalysisCache>(data) }.getOrNull()
+                                if (cache != null && cache.gameId.matches(Regex("[A-Za-z0-9._-]+"))) File(analysisDir, "${cache.gameId}.json").writeText(json.encodeToString(cache))
                             }
                             name.endsWith(".pgn") -> {
                                 val id = File(name).name.removeSuffix(".pgn")
